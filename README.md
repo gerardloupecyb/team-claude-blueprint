@@ -90,7 +90,7 @@ The 9-phase lifecycle:
 
 1. **Project Setup** (GSD) -> PROJECT.md, ROADMAP.md
 2. **Architecture** (specification-architect) -> research, blueprint, design, tasks
-3. **Plan Validation** (compound-engineering) -> multi-agent review
+3. **Plan Validation** (compound-engineering) -> multi-agent review + `deepen-plan` for best practices
 4. **Execution Planning** (GSD) -> PLAN.md files
 5. **Building** (GSD or compound-engineering swarm)
 6. **Testing** (unit + integration + E2E with Playwright)
