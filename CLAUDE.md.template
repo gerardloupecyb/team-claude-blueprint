@@ -1,0 +1,311 @@
+# Project Workflow
+
+## Lifecycle Phases
+
+Every project follows these phases in order. Skip phases that don't apply.
+
+### 1. Project Setup (GSD)
+**Command:** `/gsd:new-project`
+**Produces:** PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md
+
+### 2. Architecture per Phase (specification-architect)
+**Trigger:** Before planning each phase
+**Command:** "Use the specification-architect skill to architect Phase N: [name]"
+**Produces:** research.md, blueprint.md, requirements.md, design.md, tasks.md, validation.md
+**Why:** Evidence-based research with citations — no AI guesses. Full traceability.
+
+### 3. Plan Validation (compound-engineering)
+**Command:** `/compound-engineering:plan_review`
+**What:** Multiple specialized agents review the architecture in parallel
+**Optional:** `/compound-engineering:deepen-plan` to enrich with best practices
+
+### 4. Execution Planning (GSD)
+**Command:** `/gsd:plan-phase N --skip-research`
+**Produces:** Executable PLAN.md files with waves, dependencies, frontmatter
+**Note:** Uses specification-architect output as context — skip GSD research since it's done
+
+### 5. Building (GSD or compound-engineering)
+**Standard:** `/gsd:execute-phase N` — wave-based execution with state tracking
+**Fast/parallel:** `/compound-engineering:slfg` — autonomous swarm mode
+**Manual:** `/compound-engineering:workflows:work` — execute work plans with quality checks
+
+### 6. Testing (unit + integration + E2E)
+**After building each plan/feature, run tests before code review.**
+
+#### Unit Tests
+- Write unit tests for all business logic, utility functions, and data transformations
+- Run automatically after each feature is built
+- Framework per language (see Testing Conventions below)
+
+#### Integration Tests
+- Test API endpoints, database queries, webhook handlers
+- Verify external service integrations (mock in CI, real in staging)
+
+#### E2E / Browser Tests (Playwright)
+- **Automated:** `/compound-engineering:test-browser` — run browser tests on pages affected by current PR
+- **Interactive:** Use Playwright MCP tools for manual browser automation:
+  - `mcp__playwright__browser_navigate` — open a page
+  - `mcp__playwright__browser_click` — click elements
+  - `mcp__playwright__browser_fill_form` — fill forms
+  - `mcp__playwright__browser_take_screenshot` — capture visual state
+  - `mcp__playwright__browser_snapshot` — get accessibility tree
+  - `mcp__playwright__browser_evaluate` — run JS in browser
+- **Bug reproduction:** `/compound-engineering:reproduce-bug` — reproduce bugs using logs, console, browser screenshots
+- **Alternative:** `agent-browser` skill for Vercel agent-browser CLI (ref-based element selection)
+
+### 7. Code Review (compound-engineering + agents)
+**Primary:** `/compound-engineering:workflows:review` — exhaustive multi-agent review
+**Security:** Ask for `security-sentinel` agent — OWASP, secrets, auth, input validation
+**Performance:** Ask for `performance-oracle` agent — bottlenecks, scalability
+**Data:** Ask for `data-integrity-guardian` agent — schema safety, migrations
+**Architecture:** Ask for `architecture-strategist` agent — design compliance
+
+### 8. Verification (GSD)
+**Command:** `/gsd:verify-work`
+**What:** Conversational UAT against success criteria from roadmap
+
+### 9. DevOps (when applicable)
+**Infrastructure:** Use `iac-terraform` skill for Terraform/Terragrunt
+**CI/CD:** Use `ci-cd` skill for pipeline setup
+**Containers:** Use `k8s-troubleshooter` for Kubernetes issues
+**Monitoring:** Use `monitoring-observability` for alerting/metrics
+**Deployment:** Ask for `deployment-verification-agent` — pre/post-deploy checklists
+
+---
+
+## Review Agents (available in all projects)
+
+These are built-in Task agents — no installation needed:
+
+| Agent | When to use |
+|---|---|
+| `security-sentinel` | After building — security audit |
+| `performance-oracle` | After building — performance analysis |
+| `data-integrity-guardian` | When touching database schemas/migrations |
+| `architecture-strategist` | When making structural changes |
+| `code-simplicity-reviewer` | Before finalizing — ensure minimal complexity |
+| `deployment-verification-agent` | Before deploying — Go/No-Go checklist |
+| `data-migration-expert` | When running data migrations |
+
+---
+
+## Memory Management
+
+### MEMORY.md Protocol (Tier 1 — always in prompt)
+- After completing each phase, save key decisions and patterns to MEMORY.md
+- Use sub-files for detailed notes (e.g., memory/api-patterns.md, memory/schema-decisions.md)
+- Keep MEMORY.md as an index — concise summaries with links to sub-files
+- Remove outdated entries when decisions change
+- Max 200 lines in MEMORY.md — overflow goes to sub-files
+
+### Supermemory Protocol (Tier 3 — cloud backup)
+- At end of each major phase/milestone, save summary to supermemory with containerTag=[project-name]
+- Before starting work on a returning project, recall: "What decisions were made for [project-name]?"
+- Save cross-project learnings (patterns that apply everywhere) without containerTag
+- When MEMORY.md hits 200 lines, move detail to supermemory and keep summary in MEMORY.md
+
+### When to Save Where
+
+| What | Where | Why |
+|---|---|---|
+| Key file paths, conventions | MEMORY.md | Always in prompt |
+| Phase completion summaries | Supermemory | Survives everything |
+| Cross-project learnings | Supermemory (no tag) | Available everywhere |
+| Detailed architecture decisions | Supermemory + memory sub-file | Detail + summary |
+| Debug patterns / gotchas | memory/debugging.md | Quick reference |
+
+---
+
+## Testing Protocol
+
+### Testing Pyramid
+
+Every feature must have tests at the appropriate level before code review.
+
+```
+        +-----------+
+        |   E2E /   |  <-- Few, critical user flows (Playwright)
+        |  Browser  |
+       ++-----------++
+       | Integration  |  <-- API endpoints, DB queries, webhooks
+      ++-------------++
+      |   Unit Tests   |  <-- Business logic, utils, transformations
+      +----------------+
+```
+
+### Unit Testing Conventions
+
+**When:** After building any function with business logic, data transformation, or utility code.
+
+**Framework by language:**
+
+| Language | Framework | Config file | Test location |
+|---|---|---|---|
+| TypeScript/JS | Vitest or Jest | `vitest.config.ts` / `jest.config.ts` | `__tests__/` or `*.test.ts` |
+| Python | pytest | `pytest.ini` or `pyproject.toml` | `tests/` or `*_test.py` |
+| Ruby | RSpec or Minitest | `.rspec` / `Rakefile` | `spec/` or `test/` |
+| SQL (Supabase) | pgTAP or manual | — | `tests/sql/` |
+
+**Rules:**
+- Test file mirrors source file: `src/utils/pricing.ts` -> `src/utils/__tests__/pricing.test.ts`
+- Test names describe behavior: `it("calculates ADR excluding cancelled bookings")`
+- One assertion per test (prefer)
+- Mock external dependencies, never real APIs in unit tests
+- Minimum coverage target: 80% for business logic modules
+
+### Integration Testing Conventions
+
+**When:** After building API endpoints, database functions, webhook handlers, or service integrations.
+
+**What to test:**
+- API endpoint returns correct status codes and response shapes
+- Database queries return expected results with seed data
+- Webhook handlers process payloads correctly
+- Auth/authorization rules work (e.g., Supabase RLS policies)
+- Error cases return appropriate error responses
+
+**Rules:**
+- Use test database/schema — never production
+- Seed test data in setup, clean up in teardown
+- Test both happy path and error paths
+- For Supabase RLS: test as different roles (anon, authenticated, service_role)
+
+### E2E / Browser Testing with Playwright
+
+**When:** After building any user-facing UI (dashboards, web apps, forms).
+
+**Available tools:**
+
+| Tool | Use for |
+|---|---|
+| `/compound-engineering:test-browser` | Automated tests on pages affected by current PR |
+| Playwright MCP (`mcp__playwright__*`) | Interactive browser automation during development |
+| `/compound-engineering:reproduce-bug` | Bug investigation with browser screenshots |
+| `agent-browser` skill | Alternative browser automation via CLI |
+
+**Playwright MCP workflow for manual E2E testing:**
+```
+1. Navigate:     mcp__playwright__browser_navigate -> open the page
+2. Verify load:  mcp__playwright__browser_snapshot -> check accessibility tree
+3. Interact:     mcp__playwright__browser_click / browser_fill_form -> test user actions
+4. Validate:     mcp__playwright__browser_take_screenshot -> capture visual state
+5. Check errors: mcp__playwright__browser_console_messages -> look for JS errors
+6. Assert:       mcp__playwright__browser_evaluate -> run assertions in browser
+```
+
+**Playwright test file conventions (for automated E2E):**
+- Location: `e2e/` or `tests/e2e/`
+- Naming: `{feature}.spec.ts` (e.g., `booking-feed.spec.ts`)
+
+**What to E2E test:**
+- Critical user flows (login -> dashboard -> view data)
+- Data displays correctly after sync
+- Forms submit and save data
+- Navigation between pages works
+- Error states display correctly
+
+### Testing in the Workflow
+
+```
+BUILD (Phase 5)
+  After each feature/plan:
+    - Write unit tests for business logic
+    - Write integration tests for APIs/DB
+    - Run all tests -> fix failures before proceeding
+
+TEST (Phase 6)
+  After all features in phase complete:
+    - Run full test suite
+    - /compound-engineering:test-browser -> E2E tests
+    - Manual Playwright MCP walkthrough of key flows
+    - Screenshot evidence for PR
+
+CODE REVIEW (Phase 7)
+  Reviewer checks:
+    - Tests exist for new code
+    - Tests pass
+    - Edge cases covered
+    - No tests deleted or skipped without explanation
+
+VERIFICATION (Phase 8)
+  /gsd:verify-work against success criteria
+    - Uses test results as evidence
+    - Playwright screenshots as proof
+```
+
+### Project-Type-Specific Testing
+
+| Project Type | Unit | Integration | E2E |
+|---|---|---|---|
+| Managed stack (Supabase/Retool/n8n) | DB functions, data transforms | RLS policies, webhook handlers | Playwright on dashboards |
+| Full-stack web app | Business logic, components | API endpoints, DB queries | Full user flow automation |
+| API/Backend only | Business logic, validators | Endpoint testing, auth flows | Minimal (API client tests) |
+| Data pipeline | Transform functions, parsers | Pipeline integration | Dashboard verification |
+
+---
+
+## Git & PR Conventions
+
+### Branching Strategy
+- `main` — production-ready, protected, requires PR
+- `develop` — integration branch (optional, for teams > 2)
+- `feature/{phase}-{short-description}` — feature branches (e.g., `feature/p1-supabase-schema`)
+- `fix/{issue-number}-{short-description}` — bug fixes
+- `hotfix/{description}` — urgent production fixes (branch from main)
+
+### Commit Messages
+
+Format: `type: short description`
+
+Types:
+- `feat:` — new feature or capability
+- `fix:` — bug fix
+- `refactor:` — code restructuring without behavior change
+- `docs:` — documentation only
+- `chore:` — tooling, dependencies, config
+- `test:` — adding or updating tests
+
+Rules:
+- Keep subject line under 72 characters
+- Use imperative mood ("add X" not "added X")
+- Reference phase/requirement when applicable: `feat: add booking sync (DI-02)`
+- One logical change per commit
+
+### Pull Requests
+
+- Title: `[Phase N] Short description` (e.g., `[Phase 1] Add Supabase schema and seed data`)
+- Body template:
+  ```
+  ## Summary
+  - What this PR does (1-3 bullets)
+
+  ## Requirements Covered
+  - DI-01, DI-02 (list requirement IDs)
+
+  ## Test Plan
+  - [ ] Step-by-step verification checklist
+
+  ## Screenshots / Evidence
+  (if applicable)
+  ```
+- Always link to phase/plan being implemented
+- Require at least one review before merge (even if self-review via compound-engineering)
+- Squash merge to main for clean history
+
+### Branch Lifecycle
+1. Create branch from `main`: `feature/p1-supabase-schema`
+2. Commit work with proper messages
+3. Push and create PR with template
+4. Run `/compound-engineering:workflows:review` on the PR
+5. Address review comments
+6. Squash merge to main
+7. Delete feature branch
+
+---
+
+## Conventions
+
+- All tables include `created_at`, `updated_at`
+- Every API integration uses retry logic with exponential backoff
+- Secrets stored in environment variables, never in code
+- All schemas include soft-delete (`deleted_at`) unless explicitly excluded
